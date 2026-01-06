@@ -37,7 +37,7 @@ const SUBTITLE_STYLES = [
 ];
 
 export function VideoEditor({ onContinue }: VideoEditorProps) {
-  const { currentProject, scriptLines, videos, voiceovers } = useProject();
+  const { currentProject, scriptLines, videos, voiceovers, refreshProject } = useProject();
   const { success, error: showError } = useToast();
   const { joinProjectRoom, leaveProjectRoom, onExportUpdate } = useWebSocket();
 
@@ -298,7 +298,7 @@ export function VideoEditor({ onContinue }: VideoEditorProps) {
 
   // WebSocket listeners for export
   useEffect(() => {
-    const handleExportUpdate = (event: string, data: { progress?: number; status?: string; url?: string; error?: string }) => {
+    const handleExportUpdate = async (event: string, data: { progress?: number; status?: string; url?: string; error?: string }) => {
       if (event === 'progress') {
         setExportProgress(data.progress || 0);
         setExportStatus(data.status || '');
@@ -306,6 +306,9 @@ export function VideoEditor({ onContinue }: VideoEditorProps) {
         setIsExporting(false);
         setExportedUrl(data.url || null);
         success('Video exported successfully!');
+
+        // Refresh project to get updated lastExport data
+        await refreshProject();
 
         // Auto-trigger download
         if (data.url) {
@@ -325,7 +328,7 @@ export function VideoEditor({ onContinue }: VideoEditorProps) {
 
     const unsubscribe = onExportUpdate(handleExportUpdate);
     return unsubscribe;
-  }, [onExportUpdate, success, showError, currentProject?.title]);
+  }, [onExportUpdate, success, showError, currentProject?.title, refreshProject]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

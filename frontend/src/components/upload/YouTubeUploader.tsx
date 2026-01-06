@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Youtube, Upload, Eye, EyeOff, Globe, Lock, Tag, FileText } from 'lucide-react';
+import { Youtube, Upload, Eye, EyeOff, Globe, Lock, Tag, FileText, AlertCircle, Download } from 'lucide-react';
 import { Button } from '../common/Button';
 import { YouTubeConnect } from './YouTubeConnect';
 import { UploadProgress } from './UploadProgress';
-import { useAuth, useProject, useWebSocket } from '../../context';
+import { useAuth, useProject, useWebSocket, useToast } from '../../context';
 import { uploadsApi } from '../../api';
 
 type PrivacyStatus = 'public' | 'unlisted' | 'private';
@@ -18,6 +18,7 @@ export function YouTubeUploader() {
   const { user } = useAuth();
   const { currentProject } = useProject();
   const { socket } = useWebSocket();
+  const { success, error: showError } = useToast();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -78,33 +79,38 @@ export function YouTubeUploader() {
   const handleUpload = async () => {
     if (!currentProject) return;
 
-    setUploadStatus('exporting');
+    // Check if video has been exported
+    const videoUrl = currentProject.lastExport?.url;
+    if (!videoUrl) {
+      showError('Please export the video first before uploading to YouTube');
+      return;
+    }
+
+    setUploadStatus('uploading');
     setProgress(0);
     setError(undefined);
     setYoutubeUrl(undefined);
 
     try {
-      // Simulate export progress (actual implementation would use FFmpeg)
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise((r) => setTimeout(r, 200));
-        setProgress(i);
-      }
-
-      setUploadStatus('uploading');
-      setProgress(0);
-
-      // Start upload
-      await uploadsApi.uploadToYouTube(currentProject.id, {
+      // Start upload with the exported video URL
+      const result = await uploadsApi.uploadToYouTube(currentProject.id, {
         title: title || currentProject.title,
         description: `${description}\n\n#Shorts`,
         tags: tags
           .split(',')
           .map((t) => t.trim())
           .filter(Boolean),
-        privacyStatus: privacy,
+        visibility: privacy,
+        videoUrl,
       });
 
-      // Progress updates will come via WebSocket
+      // If upload completes synchronously
+      if (result.youtubeUrl) {
+        setUploadStatus('completed');
+        setYoutubeUrl(result.youtubeUrl);
+        success('Video uploaded to YouTube successfully!');
+      }
+      // Otherwise, progress updates will come via WebSocket
     } catch (err) {
       setUploadStatus('failed');
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -118,6 +124,35 @@ export function YouTubeUploader() {
     setYoutubeUrl(undefined);
   };
 
+  // Check if video has been exported
+  const hasExportedVideo = !!currentProject?.lastExport?.url;
+
+  if (!hasExportedVideo) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Youtube className="h-6 w-6 text-red-600" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Upload to YouTube Shorts
+          </h2>
+        </div>
+        <div className="p-6 rounded-lg border border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-yellow-800 dark:text-yellow-200">
+                Export Required
+              </h3>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                Please export your video first before uploading to YouTube. Go back to the Edit step and click "Export Video".
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isConnected) {
     return (
       <div className="space-y-6">
@@ -126,6 +161,22 @@ export function YouTubeUploader() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Upload to YouTube Shorts
           </h2>
+        </div>
+        {/* Show exported video preview */}
+        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-green-700 dark:text-green-300">Video exported and ready</span>
+            <a
+              href={currentProject?.lastExport?.url}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-green-600 hover:text-green-700 dark:text-green-400 flex items-center gap-1"
+            >
+              <Download className="h-4 w-4" />
+              Download
+            </a>
+          </div>
         </div>
         <YouTubeConnect />
       </div>
@@ -139,6 +190,23 @@ export function YouTubeUploader() {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
           Upload to YouTube Shorts
         </h2>
+      </div>
+
+      {/* Show exported video info */}
+      <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-green-700 dark:text-green-300">Video exported and ready to upload</span>
+          <a
+            href={currentProject?.lastExport?.url}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-green-600 hover:text-green-700 dark:text-green-400 flex items-center gap-1"
+          >
+            <Download className="h-4 w-4" />
+            Download
+          </a>
+        </div>
       </div>
 
       {uploadStatus !== 'idle' ? (

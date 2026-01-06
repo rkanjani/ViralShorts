@@ -35,6 +35,7 @@ interface ProjectContextType extends ProjectState {
   // Project operations
   loadProjects: () => Promise<void>;
   loadProject: (id: string) => Promise<void>;
+  refreshProject: () => Promise<void>;
   createProject: (data: CreateProjectForm) => Promise<Project>;
   updateProject: (updates: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
@@ -138,6 +139,12 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       }));
     }
   }, []);
+
+  // Refresh current project (re-fetch from backend)
+  const refreshProject = useCallback(async () => {
+    if (!state.currentProject) return;
+    await loadProject(state.currentProject.id);
+  }, [state.currentProject, loadProject]);
 
   // Create project
   const createProject = useCallback(async (data: CreateProjectForm): Promise<Project> => {
@@ -544,6 +551,7 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
     ...state,
     loadProjects,
     loadProject,
+    refreshProject,
     createProject,
     updateProject,
     deleteProject,

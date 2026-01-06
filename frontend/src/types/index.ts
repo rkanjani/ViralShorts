@@ -44,6 +44,13 @@ export type ProjectStatus =
   | 'exported'
   | 'uploaded';
 
+export interface ProjectExport {
+  id: string;
+  url: string;
+  exportedAt: Date;
+  isMock?: boolean;
+}
+
 export interface Project {
   id: string;
   userId: string;
@@ -53,6 +60,7 @@ export interface Project {
   status: ProjectStatus;
   timeline: Timeline;
   exportSettings: ExportSettings;
+  lastExport?: ProjectExport | null;
   youtubeUpload?: YouTubeUpload | null;
   script?: ScriptLine[];
   createdAt: Date;
