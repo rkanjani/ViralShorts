@@ -104,11 +104,20 @@ export function VideoEditor({ onContinue }: VideoEditorProps) {
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
   const [subtitleStyle, setSubtitleStyle] = useState(SUBTITLE_STYLES[0]);
 
-  // Export
+  // Export - initialize from project's lastExport if available
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportStatus, setExportStatus] = useState('');
-  const [exportedUrl, setExportedUrl] = useState<string | null>(null);
+  const [exportedUrl, setExportedUrl] = useState<string | null>(
+    currentProject?.lastExport?.url || null
+  );
+
+  // Sync exportedUrl with project's lastExport when project data changes
+  useEffect(() => {
+    if (currentProject?.lastExport?.url && !exportedUrl) {
+      setExportedUrl(currentProject.lastExport.url);
+    }
+  }, [currentProject?.lastExport?.url]);
 
   // Audio mix: 0 = all clip audio, 1 = all voiceover audio
   const [audioMix, setAudioMix] = useState(0.8);
