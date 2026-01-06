@@ -63,11 +63,11 @@ export function ProjectPage() {
   const { joinProjectRoom, leaveProjectRoom } = useWebSocket();
   const { error: showError } = useToast();
   const [activeStep, setActiveStep] = useState('script');
-  const hasInitializedStep = useRef(false);
+  // Track which project ID we've initialized step for (prevents re-selection on refresh)
+  const initializedProjectId = useRef<string | null>(null);
 
   useEffect(() => {
     if (id) {
-      hasInitializedStep.current = false; // Reset for new project
       loadProject(id);
       joinProjectRoom(id);
     }
@@ -85,9 +85,10 @@ export function ProjectPage() {
   }, [error, showError, clearError]);
 
   useEffect(() => {
-    // Only auto-select step on initial project load, not on subsequent updates
-    if (currentProject && !hasInitializedStep.current) {
-      hasInitializedStep.current = true;
+    // Only auto-select step on initial project load for a NEW project ID
+    // This prevents overriding manual navigation when project data refreshes
+    if (currentProject && currentProject.id !== initializedProjectId.current) {
+      initializedProjectId.current = currentProject.id;
       const status = currentProject.status;
       if (status === 'draft') setActiveStep('script');
       else if (status === 'scripted' || status === 'generating' || status === 'generated') setActiveStep('videos');
